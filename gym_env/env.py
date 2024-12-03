@@ -163,8 +163,8 @@ class HoldemTable(Env):
         self._start_new_hand()
         self._get_environment()
         # auto play for agents where autoplay is set
-        if self._agent_is_autoplay() and not self.done:
-            self.step('initial_player_autoplay')  # kick off the first action after bb by an autoplay agent
+        #if self._agent_is_autoplay() and not self.done:
+        #    self.step('initial_player_autoplay')  # kick off the first action after bb by an autoplay agent
 
         return self.array_everything
 
@@ -197,7 +197,6 @@ class HoldemTable(Env):
                         self._calculate_reward(action)
 
         else:  # action received from player shell (e.g. keras rl, not autoplay)
-            print('We are in the else of this function')
             self._get_environment()  # get legal moves
             if Action(action) not in self.legal_moves:
                 self._illegal_move(action)
@@ -466,8 +465,33 @@ class HoldemTable(Env):
         remaining_players = sum(player_alive)
         if remaining_players < 2:
             self._game_over()
+            for idx, player in enumerate(self.players):
+                if player.stack > 0:
+                    self.ep_winner_idx = idx
             return True
         return False
+
+    #def _game_over(self):
+        #"""End of an episode."""
+        #log.info("Game over.")
+        #self.done = True
+        #player_names = [f"{i} - {player.name}" for i, player in enumerate(self.players)]
+        #self.funds_history.columns = player_names
+        #if self.funds_plot:
+            # Plot the funds history and save the plot to a folder
+            # self.funds_history.reset_index(drop=True).plot()
+            # ax = self.funds_history.reset_index(drop=True).plot()
+            # time_str = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M-%S")
+            # plt.savefig(f'/home/dede/Documents/BIA/Res/neuron_poker/plots/funds_plot_{time_str}.png')
+        # log.info(self.funds_history)
+        # plt.show()
+
+        # Update the winner in episodes and log the league table
+        # winner_in_episodes.append(self.winner_ix)
+        # league_table = pd.Series(winner_in_episodes).value_counts()
+        # best_player = league_table.index[0]
+        # log.info(league_table)
+        # log.info(f"Best Player: {best_player}")
 
     def _game_over(self):
         """End of an episode."""
@@ -478,7 +502,7 @@ class HoldemTable(Env):
         if self.funds_plot:
             self.funds_history.reset_index(drop=True).plot()
         log.info(self.funds_history)
-        plt.show()
+        #plt.show()
 
         winner_in_episodes.append(self.winner_ix)
         league_table = pd.Series(winner_in_episodes).value_counts()
