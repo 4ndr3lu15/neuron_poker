@@ -8,15 +8,13 @@ from torch.utils.tensorboard import SummaryWriter
 
 class Trainer:
 
-    def __init__(self, env, batch_size=64, n_epochs=3, N=5, K=2, ß=3, æ=0.5):
+    def __init__(self, env, batch_size=64, n_epochs=3, N=5, K=2):
         self.env = env
         self.replay_buffer = deque(maxlen=10000)
         self.batch_size = batch_size
         self.n_epochs = n_epochs
         self.N = N # number of episodes per epoch
         self.K = K # number of episodes between internal updates
-        self.ß = ß # number of episodes for evaluation
-        self.æ = æ # winrate threshold for copying weights
 
         self.gamma = 0.99
         self.optimizer = torch.optim.Adam(self.env.players[0].agent_obj.policy_net.parameters(), lr=0.001)
@@ -29,7 +27,7 @@ class Trainer:
 
     def run(self):
         """Run the training loop"""
-        print(f"Training for {self.n_epochs} epochs - {self.N} train episodes and {self.ß} eval episodes per epoch")
+        print(f"Training for {self.n_epochs} epochs - {self.N} train episodes per epoch")
         for _ in range(self.n_epochs):
             self.train_one_epoch()
             self.save_model()    
@@ -40,13 +38,6 @@ class Trainer:
         print(f"Training epoch {self.current_epoch}")
         self.current_epoch_ep = 0
         self.run_train_eps()
-        ç = self.run_eval_eps()
-
-        if ç > self.æ:
-            print("Winrate is good, copying weights")
-            self.external_update()
-        else:
-            print("Winrate is too low, not copying weights")
 
     def run_train_eps(self):
         """Run N episodes, store experiences in replay buffer"""
@@ -67,10 +58,11 @@ class Trainer:
         steps = 0
 
         while not self.env.done:
-            print(self.env.current_player.name)
+
             legal_moves = self.env.legal_moves
             observation = self.env.observation
             action = self.env.current_player.agent_obj.action(legal_moves, observation, None)
+            action = Action(action)
             next_state, reward, done, _ = self.env.step(action)
 
             if mode == 'train' and self.env.current_player == self.env.players[0]:
@@ -137,9 +129,8 @@ class Trainer:
         self.optimizer.step()
 
         # Decay epsilon
-        for player in self.env.players:
-            if player.agent_obj.epsilon > player.agent_obj.epsilon_min:
-                player.agent_obj.epsilon *= player.agent_obj.epsilon_decay
+        if self.env.players[0].agent_obj.epsilon > self.env.players[0].agent_obj.epsilon_min:
+            self.env.players[0].agent_obj.epsilon *= self.env.players[0].agent_obj.epsilon_decay
 
     def run_eval_eps(self):
         """Run N episodes, return the winrate of trainable agent"""
@@ -151,10 +142,6 @@ class Trainer:
 
     def internal_update(self):
         self.env.players[0].agent_obj.target_net.load_state_dict(self.env.players[0].agent_obj.policy_net.state_dict())
-
-    def external_update(self):
-        for player in self.env.players[1:]:
-            player.agent_obj.target_net.load_state_dict(self.env.players[0].agent_obj.policy_net.state_dict())
 
     def save_model(self):
         path = f"models/{self.current_epoch}.pth"

@@ -35,7 +35,11 @@ class Player:
         """Mandatory method that calculates the move based on the observation array and the action space."""
         if np.random.rand() <= self.epsilon:
             # Explore by choosing a random valid action
-            return random.choice(action_space)
+            action = random.choice(action_space)
+            print("from epsilon")
+            print(action)
+            
+            return action
 
         this_player_action_space = {Action.FOLD, Action.CHECK, Action.CALL, Action.RAISE_POT, Action.RAISE_HALF_POT,
                                     Action.RAISE_2POT}
@@ -56,5 +60,8 @@ class Player:
             mask[action.value] = q_values[action.value]
         # Select the action with the highest Q-value among allowed actions
         action = np.argmax(mask)
+        action = Action(action)
+        print("from policy network")
+        print(action)
 
         return action
