@@ -74,8 +74,6 @@ class Trainer:
 
             if mode == 'train':
                 self.replay_buffer.append((state, action, reward, next_state, done))
-
-            if mode == 'train' and self.env.current_player == self.env.players[0]:
                 episode_reward += reward
                 
             state = next_state
