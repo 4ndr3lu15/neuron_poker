@@ -1,20 +1,13 @@
-#import gym_env
-import gym
-from agents.agent_random import Player as RandomPlayer
-from agents.agent_torch_dqn import Player as DQNPlayer
-#from agents.agent_torch_dqn_fixed import Player as DQNPlayerFixed
-import pandas as pd
 import random
-from gym_env.enums import Action
 from collections import deque
 import torch
 import numpy as np
 import torch.nn as nn
-
+from torch.utils.tensorboard import SummaryWriter
 
 class Trainer:
 
-    def __init__(self, env, batch_size=64, n_epochs=10, N=5, K=2, ß=10):
+    def __init__(self, env, batch_size=64, n_epochs=3, N=5, K=2, ß=3, æ=0.5):
         self.env = env
         self.replay_buffer = deque(maxlen=10000)
         self.batch_size = batch_size
@@ -22,29 +15,33 @@ class Trainer:
         self.N = N # number of episodes per epoch
         self.K = K # number of episodes between internal updates
         self.ß = ß # number of episodes for evaluation
+        self.æ = æ # winrate threshold for copying weights
 
         self.gamma = 0.99
-        self.epsilon = 1.0
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 0.995
         self.optimizer = torch.optim.Adam(self.env.players[0].agent_obj.policy_net.parameters(), lr=0.001)
 
         self.current_epoch = 0
+        self.current_train_ep = 0
+        self.current_train_step = 0
+
+        self.writer = SummaryWriter()
 
     def run(self):
         """Run the training loop"""
-        print(f"Training for {self.n_epochs} epochs - {self.N} episodes each")
+        print(f"Training for {self.n_epochs} epochs - {self.N} train episodes and {self.ß} eval episodes per epoch")
         for _ in range(self.n_epochs):
-            self.train_one_epoch()    
+            self.train_one_epoch()
+            self.save_model()    
+            self.current_epoch += 1
 
     def train_one_epoch(self):
         """Train the agent for one epoch"""
         print(f"Training epoch {self.current_epoch}")
-        self.current_ep = 0
-        self.current_epoch += 1
+        self.current_epoch_ep = 0
         self.run_train_eps()
         ç = self.run_eval_eps()
-        if ç > 0.40:
+
+        if ç > self.æ:
             print("Winrate is good, copying weights")
             self.external_update()
         else:
@@ -60,29 +57,44 @@ class Trainer:
 
     def run_episode(self, mode=None):
         """Run a single episode"""
-        print(f"Running episode {self.current_ep} - mode: {mode}")
+
+        print(f"Running {mode} episode {self.current_epoch_ep} from epoch {self.current_epoch}")
+
         state = self.env.reset()
         done = False
         episode_reward = 0
         steps = 0
+
         while not self.env.done:
+
             legal_moves = self.env.legal_moves
             observation = self.env.observation
             action = self.env.current_player.agent_obj.action(legal_moves, observation, None)
             next_state, reward, done, _ = self.env.step(action)
-            if mode == 'train': # and self.env.current_player == self.env.players[0]:
+
+            if mode == 'train':
                 self.replay_buffer.append((state, action, reward, next_state, done))
-            elif self.env.current_player == self.env.players[0]:
+
+            if mode == 'train' and self.env.current_player == self.env.players[0]:
                 episode_reward += reward
+                
             state = next_state
             steps += 1
         
-        self.current_ep += 1
-        print(f"Episode reward: {episode_reward} - Steps: {steps}")
-        print(f"Winner: {self.env.ep_winner_idx}")
+
+        self.current_epoch_ep += 1
+
+        print(f"Episode reward: {episode_reward} - Steps: {steps} - Winner: {self.env.ep_winner_idx}")
 
         if mode == 'train':
+
             self.optimize()
+
+            self.writer.add_scalar('Episode Reward', episode_reward, self.current_train_ep)
+            self.writer.add_scalar('Steps per Episode', steps, self.current_train_ep)
+            self.writer.add_scalar('Winning Player', self.env.ep_winner_idx, self.current_train_ep)
+
+            self.current_train_ep += 1
 
         return self.env.ep_winner_idx
 
@@ -133,7 +145,7 @@ class Trainer:
         """Run N episodes, return the winrate of trainable agent"""
         counters = {0: 0, 1: 0, 2: 0}
         for _ in range(self.ß):
-            x = self.run_episode()
+            x = self.run_episode(mode='eval')
             counters[x] += 1
         return counters[0] / self.ß
 
@@ -143,3 +155,7 @@ class Trainer:
     def external_update(self):
         for player in self.env.players[1:]:
             player.agent_obj.target_net.load_state_dict(self.env.players[0].agent_obj.policy_net.state_dict())
+
+    def save_model(self):
+        path = f"models/{self.current_epoch}.pth"
+        torch.save(self.env.players[0].agent_obj.policy_net.state_dict(), path)

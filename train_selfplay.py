@@ -3,7 +3,7 @@ from agents.agent_dqn import Player as DQNPlayer
 from self_play_trainer import Trainer as SelfPlayTrainer
 
 env_name = 'neuron_poker-v0'
-stack=5
+stack=20
 
 env = gym.make(env_name, initial_stacks=stack, funds_plot=False, render=False)
 
@@ -16,5 +16,5 @@ env.reset()
 for player in env.players:
     player.agent_obj.mount(env)
 
-trainer = SelfPlayTrainer(env)
+trainer = SelfPlayTrainer(env, batch_size=64, n_epochs=10, N=100, K=10, ß=10, æ=0.5)
 trainer.run()

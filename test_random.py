@@ -1,25 +1,31 @@
-from agents.agent_torch_dqn import Player as DQNPlayer
+from agents.agent_dqn import Player as DQNPlayer
 from agents.agent_random import Player as RandomPlayer
-from gym_env.env import PlayerShell
 import gym
 import numpy as np
 
 env_name = 'neuron_poker-v0'
-env = gym.make(env_name, initial_stacks=5, funds_plot=False, render=False)
+stack=20
 
-np.random.seed(123)
-env.seed(123)
+env = gym.make(env_name, initial_stacks=stack, funds_plot=False, render=False)
 
+env.add_player(DQNPlayer())
 env.add_player(RandomPlayer())
 env.add_player(RandomPlayer())
-#env.add_player(RandomPlayer())
-# env.add_player(PlayerShell(name='keras-rl', stack_size=self.stack))  # shell is used for callback to keras rl
-#env.add_player(PlayerShell(name='torch-rl', stack_size=5)) 
-#env.add_player(PlayerShell(name='torch-rl', stack_size=5)) 
-env.add_player(PlayerShell(name='torch-rl', stack_size=5)) 
 
-env.setup()
+env.reset()
+env.players[0].agent_obj.mount(env)
 
-dqn = DQNPlayer(env=env)
-# dqn.initiate_agent(env)
-dqn.train(env_name='torch-rl')
+state = env.reset()
+done = False
+
+while not env.done:
+    
+        legal_moves = env.legal_moves
+        observation = env.observation
+        action = env.current_player.agent_obj.action(legal_moves, observation, None)
+        next_state, reward, done, _ = env.step(action)
+        state = next_state
+        
+
+print('done')
+print(env.ep_winner_idx)
