@@ -16,5 +16,8 @@ env.reset()
 for player in env.players:
     player.agent_obj.mount(env)
 
+for player in env.players[1:]:
+    player.agent_obj.epsilon = 0.0
+
 trainer = SelfPlayTrainer(env, batch_size=64, n_epochs=10, N=100, K=10, ß=10, æ=0.5)
 trainer.run()

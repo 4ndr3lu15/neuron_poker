@@ -17,6 +17,7 @@ env.reset()
 
 model_path = get_latest_model("models")
 env.players[0].agent_obj.mount(env, model_path)
+env.players[0].agent_obj.epsilon = 0.0
 
 def run_ep(env):
     
